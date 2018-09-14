@@ -1,6 +1,8 @@
 # Lab 1: Part D
 
 import numpy as np
+import time
+from matplotlib import pyplot as plt
 
 def invest_log(f, w, N):
 	"""
@@ -28,10 +30,41 @@ def invest_log(f, w, N):
 	total = np.sum(values_shifted)
 
 	return values_shifted / total
-	
-# Test for N = 25 with provided files.
-f_in = np.loadtxt('f.txt')
-w_in = np.loadtxt('w.txt')
-N = 25
-alloc = invest_log(f_in, w_in, N)
-print('[Part D] Allocation:', alloc)
+
+def main():
+	"""
+	Running for N = 25 ... N = 2.5 million
+	"""
+	# Test for N = 25 with provided files.
+	f_in = np.loadtxt('f.txt')
+	w_in = np.loadtxt('w.txt')
+
+	# N = 25
+	# alloc = invest_log(f_in, w_in, N)
+	# print('[Part D] Allocation:', alloc)
+
+	nvals = []
+	runtimes = []
+
+	for i in range(1, 7):
+		t0 = time.time()
+		N = int(2.5 * 10 ** i)
+		nvals.append(N)
+		print('Computing for N=%d', int(N))
+
+		alloc = invest_log(f_in, w_in, N)
+		print('N=%d allocation:', alloc)
+
+		elapsed = time.time() - t0
+		# print('Elapsed: %f', time.time() - t0)
+		runtimes.append(elapsed)
+
+	# Plot in a log-log plot.
+	plt.plot(np.log(nvals), np.log(runtimes))
+	plt.xlabel('log(N)')
+	plt.ylabel('log(t)')
+	plt.title('Runtime vs. N (log-log)')
+	plt.show()
+
+if __name__ == '__main__':
+	main()
