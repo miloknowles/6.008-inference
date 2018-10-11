@@ -14,6 +14,7 @@ other code!
 import matplotlib.pyplot as plt
 import movie_data_helper
 import numpy as np
+from numpy import ma
 import scipy
 import scipy.misc
 from sys import exit
@@ -68,19 +69,20 @@ def compute_posterior(prior, likelihood, y):
         if np.abs(1 - np.sum(likelihood[:, m])) > 1e-06:
             exit('In compute_posterior: P(Y | X = %d) does not sum to 1' % m)
 
-    log_prior = np.log(prior)
+    # Use masked array to fill log0 with 0.
+    log_prior = ma.log(prior).filled(0)
 
     # Each column of likelihood represents a certain movie. Of the rows we care
-    # about (observations), sum the log likelihoods.
-    # This is the log likelihood sum for each x.
-    log_likelihood_sums = np.sum(np.log(likelihood[np.array(y),:]), axis=0)
+    # about (observations), sum the log likelihoods. This is the log likelihood sum for each x.
+    log_likelihood_sums = np.sum(ma.log(likelihood[np.array(y),:]).filled(0), axis=0)
 
-    log_marginal_y = np.log(np.sum(likelihood[np.array(y),:], axis=1))
-    log_marginal_y_sum = np.sum(log_marginal_y) # Scalar value.
+    log_sums = log_prior + log_likelihood_sums
+    c_max = np.max(log_sums) # Find maximum log value to shift all values by (avoid underflow).
 
-    # Posterior = prior * likelihood
-    posterior = np.exp(log_prior + log_likelihood_sums - log_marginal_y_sum)
-    posterior /= np.sum(posterior)
+    # Shift all values by c_max will leave ratios unaffected (equivalent to multiplying) each
+    # entry in posterior by exp(-c_max).
+    posterior = np.exp(log_sums - c_max)
+    posterior /= np.sum(posterior) # Normalize.
 
     return posterior
 
@@ -183,7 +185,7 @@ def compute_entropy(distribution):
     if np.abs(1 - np.sum(distribution)) > 1e-6:
         exit('In compute_entropy: distribution should sum to 1.')
 
-    inverse_logs = -1 * np.log2(distribution, where=(distribution != 0))
+    inverse_logs = -1 * ma.log2(distribution).filled(0)
     entropy = np.sum(distribution * inverse_logs)
 
     return entropy
@@ -271,11 +273,12 @@ def main():
     # -------------------------------------------------------------------------
     # SEE test.py for additional unit tests!
 
-    true_ratings = infer_true_movie_ratings(-1)
+    posteriors, true_ratings = infer_true_movie_ratings(-1)
     print true_ratings
+    print posteriors
 
-    entropies = compute_true_movie_rating_posterior_entropies(-1)
-    print entropies
+    # entropies = compute_true_movie_rating_posterior_entropies(-1)
+    # print entropies
 
 if __name__ == '__main__':
     main()

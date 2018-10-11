@@ -4,7 +4,7 @@ import unittest
 
 from movie_recommendations import *
 
-class TestMovieRatings(unittest.TestCase):
+class TestInferenceMethods(unittest.TestCase):
   def test_compute_movie_rating_likelihood_1x1(self):
     result = compute_movie_rating_likelihood(1)
     self.assertEqual(result[0,0], 1.0)
@@ -58,6 +58,26 @@ class TestEntropy(unittest.TestCase):
     result = compute_entropy(distribution)
     expected = 0.811278124459
     self.assertAlmostEqual(result, expected)
+
+class TestMovieRatingInference(unittest.TestCase):
+  def test_reasonable_posteriors_and_ratings(self):
+    """
+    Get true ratings for the entire dataset and make sure they are in range.
+    """
+    posteriors, true_ratings = infer_true_movie_ratings(5)
+
+    # Make sure all posteriors sum to one.
+    for i in range(posteriors.shape[0]):
+      self.assertAlmostEqual(np.sum(posteriors[i,:]), 1.0)
+
+    # Make sure all ratings are in range.
+    for rating in true_ratings:
+      self.assertTrue(rating <= 10 and rating >= 0)
+
+  def test_reasonable_entropies(self):
+    entropies = compute_true_movie_rating_posterior_entropies(10)
+    for e in entropies:
+      self.assertTrue(e >= 0 and e <= np.log2(10))
 
 if __name__ == '__main__':
   unittest.main()
