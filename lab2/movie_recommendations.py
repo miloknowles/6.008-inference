@@ -221,41 +221,47 @@ def compute_true_movie_rating_posterior_entropies(num_observations):
     return posterior_entropies
 
 
+def get_top_k_movie_ids(k, best=True):
+    """
+    Queries movies to get the best OR worst k movies, based on args.
+    """
+    _, true_ratings = infer_true_movie_ratings(-1)
+    num_movies = len(true_ratings)
+    k = min(k, num_movies)
+
+    # Note: this is not a stable sort, and index orders don't seem to be preserved.
+    sorted_indices = np.argsort(true_ratings)
+
+    top_k_indices = sorted_indices[-k:] if best else sorted_indices[:k]
+    top_k_ratings = true_ratings[top_k_indices]
+
+    # Get movie names.
+    names = []
+    for id in top_k_indices:
+        names.append(movie_data_helper.get_movie_name(id))
+
+    return top_k_indices, top_k_ratings, names
+
+
+def plot_entropy_vs_num_samples():
+    xs = np.arange(1, 201)
+    ys = []
+    for num_samples in xs:
+        print('Computing for x=%d' % num_samples)
+        entropies = compute_true_movie_rating_posterior_entropies(num_samples)
+        avg_entropy = np.mean(entropies)
+        ys.append(avg_entropy)
+
+    plt.plot(xs, ys)
+    plt.title('Average Entropy vs. Num. Observations')
+    plt.xlabel('Observations')
+    plt.ylabel('Average Entropy (bits)')
+    plt.show()
+
+
 def main():
     # Here are some error checks that you can use to test your code.
-    # print("Posterior calculation (few observations)")
-    # prior = np.array([0.6, 0.4])
-    # likelihood = np.array([
-    #     [0.7, 0.98],
-    #     [0.3, 0.02],
-    # ])
-    # y = [0]*2 + [1]*1
-    # print("My answer:")
-    # print(compute_posterior(prior, likelihood, y))
-    # print("Expected answer:")
-    # print(np.array([[0.91986917, 0.08013083]]))
-
-    # print("---")
-    # print("Entropy of fair coin flip")
-    # distribution = np.array([0.5, 0.5])
-    # print("My answer:")
-    # print(compute_entropy(distribution))
-    # print("Expected answer:")
-    # print(1.0)
-
-    # print("Entropy of coin flip where P(heads) = 0.25 and P(tails) = 0.75")
-    # distribution = np.array([0.25, 0.75])
-    # print("My answer:")
-    # print(compute_entropy(distribution))
-    # print("Expected answer:")
-    # print(0.811278124459)
-
-    # print("Entropy of coin flip where P(heads) = 0.75 and P(tails) = 0.25")
-    # distribution = np.array([0.75, 0.25])
-    # print("My answer:")
-    # print(compute_entropy(distribution))
-    # print("Expected answer:")
-    # print(0.811278124459)
+    # I moved these checks into test.py.
 
     #
     # END OF ERROR CHECKS
@@ -271,14 +277,34 @@ def main():
     #
     # END OF YOUR CODE FOR TESTING
     # -------------------------------------------------------------------------
-    # SEE test.py for additional unit tests!
 
-    posteriors, true_ratings = infer_true_movie_ratings(-1)
-    print true_ratings
-    print posteriors
+    ####################################
+    # PART D: Infer true ratings.
+    ####################################
+    # posteriors, true_ratings = infer_true_movie_ratings(-1)
+    # print true_ratings
+    # print posteriors
 
-    # entropies = compute_true_movie_rating_posterior_entropies(-1)
-    # print entropies
+    ####################################
+    # PART E: Find best and worst movies.
+    ####################################
+    # print('Top 10 Movies (based on inferred rating)')
+    # best_ids, best_ratings, best_names = get_top_k_movie_ids(40)
+    # print(best_ids)
+    # print(best_ratings)
+    # print(best_names)
+
+    # print('Worst 10 Movies (based on inferred rating)')
+    # worst_ids, worst_ratings, worst_names = get_top_k_movie_ids(10, False)
+    # print(worst_ids)
+    # print(worst_ratings)
+    # print(worst_names)
+
+    ###################################
+    # PART H: plot average entropy.
+    ###################################
+    plot_entropy_vs_num_samples()
+
 
 if __name__ == '__main__':
     main()
