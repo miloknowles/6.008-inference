@@ -43,11 +43,9 @@ def compute_posterior(prior, likelihood, y):
         gives the probability that X = m given
         Y_0 = y_0, ..., Y_{N-1} = y_{n-1}
     """
-
     # -------------------------------------------------------------------------
     # ERROR CHECKS -- DO NOT MODIFY
     #
-
     # check that prior probabilities sum to 1
     if np.abs(1 - np.sum(prior)) > 1e-06:
         exit('In compute_posterior: The prior probabilities need to sum to 1')
@@ -70,24 +68,19 @@ def compute_posterior(prior, likelihood, y):
         if np.abs(1 - np.sum(likelihood[:, m])) > 1e-06:
             exit('In compute_posterior: P(Y | X = %d) does not sum to 1' % m)
 
-    #
-    # END OF ERROR CHECKS
-    # -------------------------------------------------------------------------
-
-    # -------------------------------------------------------------------------
-    # YOUR CODE GOES HERE FOR PART (b)
-    #
-    # Place your code to compute the log of the posterior here: store it in a
-    # NumPy array called `log_answer`. If you exponentiate really small
-    # numbers, the result is likely to underflow (i.e., it will be so small
-    # that the computer will just make it 0 rather than storing the right
-    # value). You need to go to log-domain. Hint: this next line is a good
-    # first step.
     log_prior = np.log(prior)
 
-    #
-    # END OF YOUR CODE FOR PART (b)
-    # -------------------------------------------------------------------------
+    # Each column of likelihood represents a certain movie. Of the rows we care
+    # about (observations), sum the log likelihoods.
+    # This is the log likelihood sum for each x.
+    log_likelihood_sums = np.sum(np.log(likelihood[np.array(y),:]), axis=0)
+
+    log_marginal_y = np.log(np.sum(likelihood[np.array(y),:], axis=1))
+    log_marginal_y_sum = np.sum(log_marginal_y) # Scalar value.
+
+    # Posterior = prior * likelihood
+    posterior = np.exp(log_prior + log_likelihood_sums - log_marginal_y_sum)
+    posterior /= np.sum(posterior)
 
     return posterior
 
@@ -107,20 +100,16 @@ def compute_movie_rating_likelihood(M):
     - likelihood: an M row by M column matrix stored as a 2D NumPy array;
         likelihood[k, m] gives the probability that Y = k given X = m
     """
-
-    # define the size to begin with
     likelihood = np.zeros((M, M))
 
-    # -------------------------------------------------------------------------
-    # YOUR CODE GOES HERE FOR PART (c)
-    #
+    for y in range(M):
+        for x in range(M):
+            likelihood[y, x] = 1.0 / abs(y - x) if y != x else 2
+
     # Remember to normalize the likelihood, so that each column is a
     # probability distribution.
-    #
-
-    #
-    # END OF YOUR CODE FOR PART (c)
-    # -------------------------------------------------------------------------
+    for col in range(M):
+        likelihood[:,col] /= np.sum(likelihood[:,col])
 
     return likelihood
 
@@ -159,26 +148,19 @@ def infer_true_movie_ratings(num_observations=-1):
     movie_id_list = movie_data_helper.get_movie_id_list()
     num_movies = len(movie_id_list)
 
-    # -------------------------------------------------------------------------
-    # YOUR CODE GOES HERE FOR PART (d)
-    #
-    # Your code should iterate through the movies. For each movie, your code
-    # should:
-    #   1. Get all the observed ratings for the movie. You can artificially
-    #      limit the number of available ratings used by truncating the ratings
-    #      vector according to num_observations.
-    #   2. Use the ratings you retrieved and the function compute_posterior to
-    #      obtain the posterior of the true/inherent rating of the movie
-    #      given the observed ratings
-    #   3. Find the rating for each movie that maximizes the posterior
-
-    # These are the output variables - it's your job to fill them.
+    # Allocate output variables.
     posteriors = np.zeros((num_movies, M))
     MAP_ratings = np.zeros(num_movies)
 
-    #
-    # END OF YOUR CODE FOR PART (d)
-    # -------------------------------------------------------------------------
+    for i, movie_id in enumerate(movie_id_list):
+        # Truncate the number of movies if necessary.
+        ratings = movie_data_helper.get_ratings(movie_id)[:num_observations]
+
+        # Compute the posterior probability.
+        posteriors[i,:] = compute_posterior(prior, likelihood, ratings)
+
+        # MAP Rating is simply the rating with maximum posterior probability.
+        MAP_ratings[i] = np.argmax(posteriors[i,:])
 
     return posteriors, MAP_ratings
 
@@ -252,12 +234,7 @@ def compute_true_movie_rating_posterior_entropies(num_observations):
 
 
 def main():
-
-    # -------------------------------------------------------------------------
-    # ERROR CHECKS
-    #
     # Here are some error checks that you can use to test your code.
-
     print("Posterior calculation (few observations)")
     prior = np.array([0.6, 0.4])
     likelihood = np.array([
@@ -270,27 +247,27 @@ def main():
     print("Expected answer:")
     print(np.array([[0.91986917, 0.08013083]]))
 
-    print("---")
-    print("Entropy of fair coin flip")
-    distribution = np.array([0.5, 0.5])
-    print("My answer:")
-    print(compute_entropy(distribution))
-    print("Expected answer:")
-    print(1.0)
+    # print("---")
+    # print("Entropy of fair coin flip")
+    # distribution = np.array([0.5, 0.5])
+    # print("My answer:")
+    # print(compute_entropy(distribution))
+    # print("Expected answer:")
+    # print(1.0)
 
-    print("Entropy of coin flip where P(heads) = 0.25 and P(tails) = 0.75")
-    distribution = np.array([0.25, 0.75])
-    print("My answer:")
-    print(compute_entropy(distribution))
-    print("Expected answer:")
-    print(0.811278124459)
+    # print("Entropy of coin flip where P(heads) = 0.25 and P(tails) = 0.75")
+    # distribution = np.array([0.25, 0.75])
+    # print("My answer:")
+    # print(compute_entropy(distribution))
+    # print("Expected answer:")
+    # print(0.811278124459)
 
-    print("Entropy of coin flip where P(heads) = 0.75 and P(tails) = 0.25")
-    distribution = np.array([0.75, 0.25])
-    print("My answer:")
-    print(compute_entropy(distribution))
-    print("Expected answer:")
-    print(0.811278124459)
+    # print("Entropy of coin flip where P(heads) = 0.75 and P(tails) = 0.25")
+    # distribution = np.array([0.75, 0.25])
+    # print("My answer:")
+    # print(compute_entropy(distribution))
+    # print("Expected answer:")
+    # print(0.811278124459)
 
     #
     # END OF ERROR CHECKS
@@ -304,10 +281,13 @@ def main():
     # easy for us graders to run your code. You may want to define multiple
     # functions for each of the parts of this problem, and call them here.
 
+    # Test 1: compute_movie_rating_likelihood(M)
+    M = 1
+    l1 = compute_movie_rating_likelihood(1)
+
     #
     # END OF YOUR CODE FOR TESTING
     # -------------------------------------------------------------------------
-
 
 if __name__ == '__main__':
     main()
