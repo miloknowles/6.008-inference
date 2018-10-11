@@ -139,7 +139,6 @@ def infer_true_movie_ratings(num_observations=-1):
         MAP_ratings[i] gives the true/inherent rating with the highest
         posterior probability in the distribution `posteriors[i]`
     """
-
     M = 11  # all of our ratings are between 0 and 10
     prior = np.array([1.0 / M] * M)  # uniform distribution
     likelihood = compute_movie_rating_likelihood(M)
@@ -183,20 +182,9 @@ def compute_entropy(distribution):
     #
     if np.abs(1 - np.sum(distribution)) > 1e-6:
         exit('In compute_entropy: distribution should sum to 1.')
-    #
-    # END OF ERROR CHECK
-    # -------------------------------------------------------------------------
 
-    # -------------------------------------------------------------------------
-    # YOUR CODE GOES HERE FOR PART (f)
-    #
-    # Be sure to:
-    # - use log base 2
-    # - enforce 0log0 = 0
-
-    #
-    # END OF YOUR CODE FOR PART (f)
-    # -------------------------------------------------------------------------
+    inverse_logs = -1 * np.log2(distribution, where=(distribution != 0))
+    entropy = np.sum(distribution * inverse_logs)
 
     return entropy
 
@@ -220,32 +208,30 @@ def compute_true_movie_rating_posterior_entropies(num_observations):
         rating of the i-th movie given observed ratings (with number of
         observed ratings given by the input `num_observations`)
     """
+    posterior_dist, _ = infer_true_movie_ratings(num_observations)
 
-    # -------------------------------------------------------------------------
-    # YOUR CODE GOES HERE FOR PART (g)
-    #
-    # Make use of the compute_entropy function you coded in part (f).
+    n_dist = posterior_dist.shape[0]
+    posterior_entropies = np.zeros(n_dist) # Each row is a posterior distribution.
 
-    #
-    # END OF YOUR CODE FOR PART (g)
-    # -------------------------------------------------------------------------
+    for i in range(n_dist):
+        posterior_entropies[i] = compute_entropy(posterior_dist[i])
 
     return posterior_entropies
 
 
 def main():
     # Here are some error checks that you can use to test your code.
-    print("Posterior calculation (few observations)")
-    prior = np.array([0.6, 0.4])
-    likelihood = np.array([
-        [0.7, 0.98],
-        [0.3, 0.02],
-    ])
-    y = [0]*2 + [1]*1
-    print("My answer:")
-    print(compute_posterior(prior, likelihood, y))
-    print("Expected answer:")
-    print(np.array([[0.91986917, 0.08013083]]))
+    # print("Posterior calculation (few observations)")
+    # prior = np.array([0.6, 0.4])
+    # likelihood = np.array([
+    #     [0.7, 0.98],
+    #     [0.3, 0.02],
+    # ])
+    # y = [0]*2 + [1]*1
+    # print("My answer:")
+    # print(compute_posterior(prior, likelihood, y))
+    # print("Expected answer:")
+    # print(np.array([[0.91986917, 0.08013083]]))
 
     # print("---")
     # print("Entropy of fair coin flip")
@@ -280,14 +266,16 @@ def main():
     # Place your code that calls the relevant functions here.  Make sure it's
     # easy for us graders to run your code. You may want to define multiple
     # functions for each of the parts of this problem, and call them here.
-
-    # Test 1: compute_movie_rating_likelihood(M)
-    M = 1
-    l1 = compute_movie_rating_likelihood(1)
-
     #
     # END OF YOUR CODE FOR TESTING
     # -------------------------------------------------------------------------
+    # SEE test.py for additional unit tests!
+
+    true_ratings = infer_true_movie_ratings(-1)
+    print true_ratings
+
+    entropies = compute_true_movie_rating_posterior_entropies(-1)
+    print entropies
 
 if __name__ == '__main__':
     main()
