@@ -68,6 +68,7 @@ def forward_backward(all_possible_hidden_states,
     # TODO: get rid of this double loop!!!
     node_potentials = np.zeros((num_time_steps, n))
     for t in range(0, num_time_steps):
+        # Handle missing observations by not including this observation.
         if (observations[t] is None):
             node_potentials[t] = np.ones(n)
         else:
@@ -100,6 +101,17 @@ def forward_backward(all_possible_hidden_states,
     for t in reversed(range(num_time_steps-1)):
         backward_messages[t] = np.matmul(np.transpose(T), backward_messages[t+1] * node_potentials[t+1])
         backward_messages[t] /= np.sum(backward_messages[t]) # Normalize.
+
+    # PART A.
+    # print('Forward messages:')
+    # for i, val in enumerate(forward_messages[1]):
+    #     if (val > 0):
+    #         print(all_possible_hidden_states[i], val)
+
+    # print('Backward messages:')
+    # for i, val in enumerate(backward_messages[0]):
+    #     if (val > 0):
+    #         print(all_possible_hidden_states[i], val)
 
     marginals = [None] * num_time_steps # remove this
 
@@ -140,11 +152,47 @@ def Viterbi(all_possible_hidden_states,
     A list of esimated hidden states, each encoded as a tuple
     (<x>, <y>, <action>)
     """
-
-    # TODO: This is for you to implement
-
     num_time_steps = len(observations)
     estimated_hidden_states = [None] * num_time_steps # remove this
+
+    n = len(all_possible_hidden_states)
+
+    # Make a transition matrix. T[j,i] is the probability of arriving at state j
+    # from state i. Therefore, each column i is a transition distribution for a
+    # particular from_state i.
+    T = np.zeros((n, n))
+    for i, from_state in enumerate(all_possible_hidden_states):
+        tmodel = transition_model(from_state) # Distribution over next states.
+        T[:,i] = np.array([tmodel[next_state] for next_state in all_possible_hidden_states])
+
+    trellis = np.zeros((n, num_time_steps)) # Stores best log probabilities.
+    dp = np.zeros((n, num_time_steps)) # Stores parent pointers.
+
+    # Set prior.
+    for i, state in enumerate(all_possible_hidden_states):
+        trellis[i, 0] = prior_distribution[state]
+
+    for t in range(1, num_time_steps):
+        print(t)
+        # For each possible value, find the most likely previous state that leads here.
+        for i in range(n):
+            best_k = 0
+            best_p = 0
+
+            this_state = all_possible_hidden_states[i]
+            obs_prob = observation_model(this_state)[observations[t]]
+            for k in range(n):
+                prev_p = trellis[k, t-1]
+                transition_prob = T[i, k]
+                p = np.log(prev_p) + np.log(transition_prob) + np.log(obs_prob)
+
+                if p > best_p:
+                    best_p = p
+                    best_k = k
+
+            # Update trellis.
+            trellis[i, t] = best_p
+            dp[i, t] = k
 
     return estimated_hidden_states
 
