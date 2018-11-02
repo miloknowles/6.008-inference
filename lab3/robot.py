@@ -63,6 +63,7 @@ class Distribution(dict):
 
     def renormalize(self):
         normalization_constant = sum(self.values())
+        # print(normalization_constant)
         for key in self.keys():
             self[key] /= normalization_constant
 

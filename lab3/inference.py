@@ -71,6 +71,7 @@ def forward_backward(all_possible_hidden_states,
         for i, node_state in enumerate(all_possible_hidden_states):
             likelihood_dist = observation_model(node_state)
             node_potentials[t,i] = likelihood_dist[observations[t]]
+        print(np.sum(node_potentials[t]))
 
     # Make sure that we incorporate known action at t=0 (STAY).
     for i, state in enumerate(all_possible_hidden_states):
@@ -88,23 +89,26 @@ def forward_backward(all_possible_hidden_states,
 
     # Compute forward messages.
     for t in range(1, num_time_steps):
-        forward_messages[t] = node_potentials[t-1] * np.matmul(T, forward_messages[t-1])
+        forward_messages[t] = np.matmul(T, forward_messages[t-1] * node_potentials[t-1])
         forward_messages[t] /= np.sum(forward_messages[t]) # Normalize.
 
     # Compute backward messages.
     backward_messages = [np.zeros(n)] * num_time_steps
     backward_messages[-1] = np.ones(n)
     for t in reversed(range(num_time_steps-1)):
-        backward_messages[t] = node_potentials[t+1] * np.matmul(np.transpose(T), backward_messages[t+1])
+        # print('Backward t:', t)
+        backward_messages[t] = np.matmul(np.transpose(T), backward_messages[t+1] * node_potentials[t+1])
         backward_messages[t] /= np.sum(backward_messages[t]) # Normalize.
 
     marginals = [None] * num_time_steps # remove this
 
     # Each marginal is the product of message before, message after, and node potential.
     for t in range(num_time_steps):
-        marginals[t] = node_potentials[t]
+        marginals[t] = node_potentials[t].copy()
         if t > 0:
             marginals[t] *= forward_messages[t]
+
+        marginals[t] /= np.sum(marginals[t])
         if t < (num_time_steps-1):
             marginals[t] *= backward_messages[t]
 
