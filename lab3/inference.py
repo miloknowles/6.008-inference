@@ -68,10 +68,12 @@ def forward_backward(all_possible_hidden_states,
     # TODO: get rid of this double loop!!!
     node_potentials = np.zeros((num_time_steps, n))
     for t in range(0, num_time_steps):
-        for i, node_state in enumerate(all_possible_hidden_states):
-            likelihood_dist = observation_model(node_state)
-            node_potentials[t,i] = likelihood_dist[observations[t]]
-        print(np.sum(node_potentials[t]))
+        if (observations[t] is None):
+            node_potentials[t] = np.ones(n)
+        else:
+            for i, node_state in enumerate(all_possible_hidden_states):
+                likelihood_dist = observation_model(node_state)
+                node_potentials[t,i] = likelihood_dist[observations[t]]
 
     # Make sure that we incorporate known action at t=0 (STAY).
     for i, state in enumerate(all_possible_hidden_states):
@@ -96,7 +98,6 @@ def forward_backward(all_possible_hidden_states,
     backward_messages = [np.zeros(n)] * num_time_steps
     backward_messages[-1] = np.ones(n)
     for t in reversed(range(num_time_steps-1)):
-        # print('Backward t:', t)
         backward_messages[t] = np.matmul(np.transpose(T), backward_messages[t+1] * node_potentials[t+1])
         backward_messages[t] /= np.sum(backward_messages[t]) # Normalize.
 
