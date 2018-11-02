@@ -12,6 +12,8 @@ import robot
 if enable_graphics:
     import graphics
 
+from robot import Distribution
+
 
 #-----------------------------------------------------------------------------
 # Functions for you to implement
@@ -49,19 +51,73 @@ def forward_backward(all_possible_hidden_states,
     generate_data() above, and the i-th Distribution should correspond to time
     step i
     """
-
     num_time_steps = len(observations)
-    forward_messages = [None] * num_time_steps
-    forward_messages[0] = prior_distribution
-    # TODO: Compute the forward messages
+    n = len(all_possible_hidden_states)
 
-    backward_messages = [None] * num_time_steps
-    # TODO: Compute the backward messages
+    # Make a transition matrix. T[j,i] is the probability of arriving at state j
+    # from state i. Therefore, each column i is a transition distribution for a
+    # particular from_state i.
+    T = np.zeros((n, n))
+
+    for i, from_state in enumerate(all_possible_hidden_states):
+        tmodel = transition_model(from_state) # Distribution over next states.
+        T[:,i] = np.array([tmodel[next_state] for next_state in all_possible_hidden_states])
+
+    # Make node potentials for each node x_t = 1...n
+    # The node potential is the observation likelihood.
+    # TODO: get rid of this double loop!!!
+    node_potentials = np.zeros((num_time_steps, n))
+    for t in range(0, num_time_steps):
+        for i, node_state in enumerate(all_possible_hidden_states):
+            likelihood_dist = observation_model(node_state)
+            node_potentials[t,i] = likelihood_dist[observations[t]]
+
+    # Make sure that we incorporate known action at t=0 (STAY).
+    for i, state in enumerate(all_possible_hidden_states):
+        if state[2] != 'stay':
+            node_potentials[0, i] = 0
+    node_potentials[0] /= np.sum(node_potentials[0])
+
+    # Each forward_messages[i] stores the message from i-1 to i.
+    # The message is a numpy array of length n, (where n is # hidden states).
+    forward_messages = [np.zeros(n)] * num_time_steps
+
+    # First forward message is just the prior.
+    # This is uniform over all locations.
+    forward_messages[0] = np.array([prior_distribution[state_i] for state_i in all_possible_hidden_states])
+
+    # Compute forward messages.
+    for t in range(1, num_time_steps):
+        forward_messages[t] = node_potentials[t] * np.matmul(T, forward_messages[t-1])
+        forward_messages[t] /= np.sum(forward_messages[t]) # Normalize.
+
+    # Compute backward messages.
+    backward_messages = [np.zeros(n)] * num_time_steps
+    backward_messages[-1] = np.ones(n)
+    for t in reversed(range(num_time_steps-1)):
+        backward_messages[t] = node_potentials[t] * np.matmul(np.transpose(T), backward_messages[t+1])
+        backward_messages[t] /= np.sum(backward_messages[t]) # Normalize.
 
     marginals = [None] * num_time_steps # remove this
-    # TODO: Compute the marginals 
 
-    return marginals
+    # Each marginal is the product of message before, message after, and node potential.
+    for t in range(num_time_steps):
+        marginals[t] = node_potentials[t]
+        if t > 0:
+            marginals[t] *= forward_messages[t-1]
+        if t < (num_time_steps-1):
+            marginals[t] *= backward_messages[t+1]
+
+    # Convert marginals to Distribution.
+    marginals_dist = []
+    for marg in marginals:
+        dist = Distribution()
+        for i, state in enumerate(all_possible_hidden_states):
+            dist[state] = marg[i]
+        dist.renormalize()
+        marginals_dist.append(dist)
+
+    return marginals_dist
 
 def Viterbi(all_possible_hidden_states,
             all_possible_observed_states,
