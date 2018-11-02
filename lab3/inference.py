@@ -88,14 +88,14 @@ def forward_backward(all_possible_hidden_states,
 
     # Compute forward messages.
     for t in range(1, num_time_steps):
-        forward_messages[t] = node_potentials[t] * np.matmul(T, forward_messages[t-1])
+        forward_messages[t] = node_potentials[t-1] * np.matmul(T, forward_messages[t-1])
         forward_messages[t] /= np.sum(forward_messages[t]) # Normalize.
 
     # Compute backward messages.
     backward_messages = [np.zeros(n)] * num_time_steps
     backward_messages[-1] = np.ones(n)
     for t in reversed(range(num_time_steps-1)):
-        backward_messages[t] = node_potentials[t] * np.matmul(np.transpose(T), backward_messages[t+1])
+        backward_messages[t] = node_potentials[t+1] * np.matmul(np.transpose(T), backward_messages[t+1])
         backward_messages[t] /= np.sum(backward_messages[t]) # Normalize.
 
     marginals = [None] * num_time_steps # remove this
@@ -104,9 +104,9 @@ def forward_backward(all_possible_hidden_states,
     for t in range(num_time_steps):
         marginals[t] = node_potentials[t]
         if t > 0:
-            marginals[t] *= forward_messages[t-1]
+            marginals[t] *= forward_messages[t]
         if t < (num_time_steps-1):
-            marginals[t] *= backward_messages[t+1]
+            marginals[t] *= backward_messages[t]
 
     # Convert marginals to Distribution.
     marginals_dist = []
@@ -272,6 +272,14 @@ if __name__ == '__main__':
     else:
         print('*No marginal computed*')
     print('\n')
+
+    timestep = 1
+    print("Most likely parts of marginal at time %d:" % (timestep))
+    if marginals[timestep] is not None:
+        print(sorted(marginals[timestep].items(), key=lambda x: x[1], reverse=True)[:10])
+    else:
+        print('*No marginal computed*')
+    print('\n')  
 
     print('Running Viterbi...')
     estimated_states = Viterbi(all_possible_hidden_states,
