@@ -23,8 +23,15 @@ def extract_features(f, all_words):
     ------
     Extracted features. 
     """
-    ### TODO: Comment out the following line and write your code here
-    raise NotImplementedError
+    words_in_f = set(util.get_words_in_file(f))
+    features = np.zeros(len(all_words))
+
+    # Set entry to 0 or 1 to indicate absence or presence of word i.
+    for i, w in enumerate(all_words):
+        if w in words_in_f:
+            features[i] = 1
+
+    return features
 
 def logistic_eval(y, c, theta):
     """
@@ -44,8 +51,11 @@ def logistic_eval(y, c, theta):
     ------
     logistic regression loss for model prediction compared to true class labels
     """
-    ### TODO: Comment out the following line and write your code here
-    raise NotImplementedError
+    log_p_spam = np.log(1.0 / (1.0 + np.exp(-1 * (theta[0] + np.matmul(y, theta[1:])))))
+    log_p_ham = 1 - log_p_spam
+
+    phi = np.select([c == 1, c == 0], [log_p_spam, log_p_spam])
+    return phi
 
 def logistic_derivative(y, c, theta):
     """
@@ -66,8 +76,18 @@ def logistic_derivative(y, c, theta):
     Numpy array G of shape (num_features + 1), where G[i] contains the derivative of the cost function
     with respect to theta[i]. 
     """
-    ### TODO: Comment out the following line and write your code here
-    raise NotImplementedError
+    k, n = y.shape
+
+    y_with_bias = np.ones((k, n + 1)) # Add an additional bias feature of all 1s.
+    y_with_bias[:,1:] = y # Add the rest of y features to the right of the col of 1s.
+
+    # Sigmoid activation of all data points (k x 1)
+    sigmoid_y = 1.0 / (1.0 + np.exp(np.matmul(y_with_bias, theta)))
+
+    # (n+1 x 1)
+    cost_wrt_theta = np.matmul(y_with_bias.T, c) - np.matmul(y_with_bias.T, sigmoid_y)
+
+    return cost_wrt_theta
 
 def train_logistic(file_lists_by_category):
     """
@@ -88,17 +108,36 @@ def train_logistic(file_lists_by_category):
     and all_words is the list of all words found in the dataset (reused later to make
     sure we extract features in a consistent manner)
     """
-    ### TODO: Comment out the following line and write your code here
-    raise NotImplementedError
+    # Build the set of all words.
+    all_words = set()
+    for filelist in file_lists_by_category:
+        for f in filelist:
+            words_in_f = util.get_words_in_file(f)
+            all_words.update(words_in_f)
+    all_words = list(all_words)
 
-    # We implemented optimize_theta for you later on in this file.
-    # No need to spend a lot of time examining it, besides checking 
-    # what it takes as input, unless you're curious. 
-    # However, note that it relies on your previous functions to be correct.
-    # Anyway, feel free to use e.g. the following code after you've created features and labels.
+    num_spam = len(file_lists_by_category[0])
+    num_ham = len(file_lists_by_category[1])
 
-    # theta = optimize_theta(features, labels)
-    # return theta, all_words
+    num_examples = len(spam_files) + len(ham_files)
+    num_features = len(all_words)
+
+    # Allocate data containers.
+    y = np.zeros(num_examples, num_features)
+
+    # Let label spam = 1.
+    c = np.zeros(num_examples)
+    c[:num_spam] = 1.0
+
+    # Get features for each file.
+    j = 0 # Counter.
+    for filelist in file_lists_by_category:
+        for f in filelist:
+            y[j,:] = extract_features(f, all_words)
+
+    # Optimize parameters.
+    theta = optimize_theta(features, labels)
+    return theta, all_words
 
 def classify_message(filename, theta, all_words):
     """

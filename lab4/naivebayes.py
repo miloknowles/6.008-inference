@@ -21,8 +21,11 @@ def get_counts(file_list):
     A dict whose keys are words, and whose values are the number of files the
     key occurred in.
     """
-    ### TODO: Comment out the following line and write your code here
-    raise NotImplementedError
+    ctr = util.Counter()
+    for f in file_list:
+        for w in set(util.get_words_in_file(f)):
+            ctr[w] += 1
+    return ctr
 
 def get_log_probabilities(file_list):
     """
@@ -44,9 +47,18 @@ def get_log_probabilities(file_list):
     The data structure util.DefaultDict will be useful to you here, as will the
     get_counts() helper above.
     """
-    ### TODO: Comment out the following line and write your code here
-    raise NotImplementedError
+    ctr = get_counts(file_list)
+    K = len(file_list) # Number of documents.
 
+    prob = {}
+    for word in ctr:
+        p_yes = float(1 + ctr[word]) / (K + 2)
+        p_no  = 1 - p_yes
+        assert(p_yes > 0 and p_yes < 1)
+        assert(p_no > 0 and p_no < 1)
+        prob[word] = np.log(np.array([p_no, p_yes]))
+
+    return prob
 
 def learn_distributions(file_lists_by_category):
     """
@@ -68,8 +80,16 @@ def learn_distributions(file_lists_by_category):
                             each class:
                             [est. for log P(c=spam), est. for log P(c=ham)]
     """
-    ### TODO: Comment out the following line and write your code here
-    raise NotImplementedError
+    spam_files, ham_files = file_lists_by_category
+    K_spam, K_ham = len(spam_files), len(ham_files)
+
+    p_wj_given_spam = get_log_probabilities(spam_files)
+    p_wj_given_ham = get_log_probabilities(ham_files)
+
+    prior_spam = np.log(float(K_spam) / (K_spam + K_ham))
+    prior_ham = np.log(float(K_ham) / (K_spam + K_ham))
+
+    return ([p_wj_given_spam, p_wj_given_ham], [prior_spam, prior_ham])
 
 def classify_message(message_filename,
                      log_probabilities_by_category,
@@ -93,8 +113,29 @@ def classify_message(message_filename,
     ------
     One of the labels in names.
     """
-    ### TODO: Comment out the following line and write your code here
-    return 'spam'
+    words = util.get_words_in_file(message_filename)
+    words_set = set(words) # Faster lookup.
+
+    # Start with just the prior probability of 'spam' and 'ham', respectively.
+    posteriors = np.array(log_prior_by_category)
+    # print('Prior:', posteriors)
+
+    # print(log_probabilities_by_category[0])
+    # assert(False)
+
+    for w in log_probabilities_by_category[0]:
+        has_word = 1 if w in words_set else 0
+        posteriors[0] += log_probabilities_by_category[0][w][has_word]
+
+    for w in log_probabilities_by_category[1]:
+        has_word = 1 if w in words_set else 0
+        posteriors[1] += log_probabilities_by_category[1][w][has_word]
+
+    print('Posteriors: spam=%f ham=%f' % (posteriors[0], posteriors[1]))
+    if posteriors[0] >= posteriors[1]:
+        return names[0]
+    else:
+        return names[1]
 
 if __name__ == '__main__':
     ### Read arguments
