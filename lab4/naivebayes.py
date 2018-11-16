@@ -50,7 +50,11 @@ def get_log_probabilities(file_list):
     ctr = get_counts(file_list)
     K = len(file_list) # Number of documents.
 
-    prob = {}
+    # Due to smoothing, the default probability for a word that does not exist
+    # is 1 / K+2.
+    default = 1.0 / (K + 2)
+    prob = util.DefaultDict(lambda: np.log(np.array([1-default, default])))
+
     for word in ctr:
         p_yes = float(1 + ctr[word]) / (K + 2)
         p_no  = 1 - p_yes
@@ -82,12 +86,19 @@ def learn_distributions(file_lists_by_category):
     """
     spam_files, ham_files = file_lists_by_category
     K_spam, K_ham = len(spam_files), len(ham_files)
+    K = K_spam + K_ham
+    print(K_spam, K_ham)
 
     p_wj_given_spam = get_log_probabilities(spam_files)
     p_wj_given_ham = get_log_probabilities(ham_files)
 
-    prior_spam = np.log(float(K_spam) / (K_spam + K_ham))
-    prior_ham = np.log(float(K_ham) / (K_spam + K_ham))
+    prior_spam = np.log(float(K_spam) / K)
+    prior_ham = np.log(float(K_ham) / K)
+    # p_spam = 0.999
+    # prior_spam = np.log(p_spam)
+    # prior_ham = np.log(1 - p_spam)
+
+    print(prior_spam, prior_ham)
 
     return ([p_wj_given_spam, p_wj_given_ham], [prior_spam, prior_ham])
 
@@ -120,18 +131,19 @@ def classify_message(message_filename,
     posteriors = np.array(log_prior_by_category)
     # print('Prior:', posteriors)
 
-    # print(log_probabilities_by_category[0])
-    # assert(False)
+    # Feature space is all the words from spam and ham.
+    all_words = set(log_probabilities_by_category[0].keys())
+    all_words.update(list(log_probabilities_by_category[1].keys()))
+    # print(len(all_words))
 
-    for w in log_probabilities_by_category[0]:
+    # Sum log-probabilities of generating each observed word given the label.
+    # for w in log_probabilities_by_category[0]:
+    for w in all_words:
         has_word = 1 if w in words_set else 0
         posteriors[0] += log_probabilities_by_category[0][w][has_word]
-
-    for w in log_probabilities_by_category[1]:
-        has_word = 1 if w in words_set else 0
         posteriors[1] += log_probabilities_by_category[1][w][has_word]
 
-    print('Posteriors: spam=%f ham=%f' % (posteriors[0], posteriors[1]))
+    # print(posteriors)
     if posteriors[0] >= posteriors[1]:
         return names[0]
     else:
@@ -169,10 +181,9 @@ if __name__ == '__main__':
         guessed_index = (label == 'ham')
         performance_measures[int(true_index), int(guessed_index)] += 1
 
-
         # Uncomment this line to see which files your classifier
         # gets right/wrong:
-        #print("%s : %s" %(label, filename))
+        # print("%s : %s" %(label, filename))
 
     template="You correctly classified %d out of %d spam messages, and %d out of %d ham messages."
     # Correct counts are on the diagonal
