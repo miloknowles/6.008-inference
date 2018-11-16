@@ -33,6 +33,29 @@ def extract_features(f, all_words):
 
     return features
 
+### UNCOMMENT THIS FUNCTION TO OVERRIDE WITH WORD FREQUENCY FEATURES.
+# def extract_features(f, all_words):
+#     """
+#     Each feature is the number of occurrences of a word in the file, divided by
+#     the total number of words in the file.
+#     """
+#     words_in_f = util.get_words_in_file(f)
+#     freq = {}
+
+#     for w in words_in_f:
+#         if w not in freq: freq[w] = 0
+#         freq[w] += 1.0
+
+#     features = np.zeros(len(all_words))
+
+#     # Set entry to 0 or 1 to indicate absence or presence of word i.
+#     for i, w in enumerate(all_words):
+#         if w in freq:
+#             features[i] = freq[w] / float(len(words_in_f))
+
+#     # print(features)
+#     return features
+
 def logistic_eval(y, c, theta):
     """
     Compute the cost function for a collection of data points.
@@ -129,7 +152,6 @@ def train_logistic(file_lists_by_category):
     # Let label spam = 1.
     c = np.zeros(num_examples)
     c[:num_spam] = 1.0
-    print(c)
 
     # Get features for each file.
     j = 0 # Counter.
@@ -139,7 +161,7 @@ def train_logistic(file_lists_by_category):
             j += 1
 
     # Optimize parameters.
-    theta = optimize_theta(y, c)
+    theta = optimize_theta(y, c) #, learning_rate=4.0, convergence_threshold=1e-6)
     return theta, all_words
 
 def classify_message(filename, theta, all_words):
@@ -205,12 +227,19 @@ def optimize_theta(y, c, show_loss_plot=SHOW_LOSS_PLOT, learning_rate=0.5, conve
     loss = -logistic_eval(y, c, theta)
     print('Initial loss:', loss)
     losses = [loss]
+
+    ctr = 0
+
     while loss < prev_loss - convergence_threshold * num_examples: # scale by num_examples as a normalization
         gradient = logistic_derivative(y, c, theta) / num_examples # scale by num_examples as a normalization
         theta = theta - learning_rate * gradient
         prev_loss = loss
         loss = -logistic_eval(y, c, theta)
         losses.append(loss)
+
+        if ctr % 100 == 0:
+            print('Loss (t=%d): %f' % (ctr, loss))
+        ctr += 1
 
     if show_loss_plot:
         plt.plot(range(len(losses)), losses)
