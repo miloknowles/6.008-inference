@@ -29,7 +29,7 @@ def extract_features(f, all_words):
     # Set entry to 0 or 1 to indicate absence or presence of word i.
     for i, w in enumerate(all_words):
         if w in words_in_f:
-            features[i] = 1
+            features[i] = 1.0
 
     return features
 
@@ -51,11 +51,12 @@ def logistic_eval(y, c, theta):
     ------
     logistic regression loss for model prediction compared to true class labels
     """
-    log_p_spam = np.log(1.0 / (1.0 + np.exp(-1 * (theta[0] + np.matmul(y, theta[1:])))))
-    log_p_ham = 1 - log_p_spam
+    p_spam = 1.0 / (1.0 + np.exp(-1 * (theta[0] + np.matmul(y, theta[1:]))))
+    p_ham = 1.0 - p_spam
 
-    phi = np.select([c == 1, c == 0], [log_p_spam, log_p_spam])
-    return phi
+    # Take the first loss term if spam, o.w take ham loss.
+    phi = np.select([c == 1, c == 0], [np.log(p_spam), np.log(p_ham)])
+    return np.sum(phi)
 
 def logistic_derivative(y, c, theta):
     """
@@ -71,6 +72,7 @@ def logistic_derivative(y, c, theta):
 
     theta: numpy array of model parameters, theta_0 to theta_n, or shape (num_features + 1)
 
+
     Output
     ------
     Numpy array G of shape (num_features + 1), where G[i] contains the derivative of the cost function
@@ -82,12 +84,11 @@ def logistic_derivative(y, c, theta):
     y_with_bias[:,1:] = y # Add the rest of y features to the right of the col of 1s.
 
     # Sigmoid activation of all data points (k x 1)
-    sigmoid_y = 1.0 / (1.0 + np.exp(np.matmul(y_with_bias, theta)))
+    sigmoid_y = 1.0 / (1.0 + np.exp(-1 * np.matmul(y_with_bias, theta)))
 
     # (n+1 x 1)
     cost_wrt_theta = np.matmul(y_with_bias.T, c) - np.matmul(y_with_bias.T, sigmoid_y)
-
-    return cost_wrt_theta
+    return -1 * cost_wrt_theta
 
 def train_logistic(file_lists_by_category):
     """
@@ -119,24 +120,26 @@ def train_logistic(file_lists_by_category):
     num_spam = len(file_lists_by_category[0])
     num_ham = len(file_lists_by_category[1])
 
-    num_examples = len(spam_files) + len(ham_files)
+    num_examples = (num_spam + num_ham)
     num_features = len(all_words)
 
     # Allocate data containers.
-    y = np.zeros(num_examples, num_features)
+    y = np.zeros((num_examples, num_features))
 
     # Let label spam = 1.
     c = np.zeros(num_examples)
     c[:num_spam] = 1.0
+    print(c)
 
     # Get features for each file.
     j = 0 # Counter.
     for filelist in file_lists_by_category:
         for f in filelist:
             y[j,:] = extract_features(f, all_words)
+            j += 1
 
     # Optimize parameters.
-    theta = optimize_theta(features, labels)
+    theta = optimize_theta(y, c)
     return theta, all_words
 
 def classify_message(filename, theta, all_words):
@@ -156,10 +159,15 @@ def classify_message(filename, theta, all_words):
     ------
     'spam' or 'ham'
     """
-    ### TODO: Comment out the following line and write your code here
-    raise NotImplementedError
+    features = extract_features(filename, all_words)
 
+    # Evaluate p_spam.
+    p_spam = 1.0 / (1.0 + np.exp(-1 * (theta[0] + np.matmul(features, theta[1:]))))
 
+    if p_spam >= 0.5:
+        return 'spam'
+    else:
+        return 'ham'
 
 """
 
@@ -168,8 +176,6 @@ END OF YOUR CODE
 DO NOT MODIFY ANY OF THE CODE THAT FOLLOWS.
 
 """
-
-
 
 def optimize_theta(y, c, show_loss_plot=SHOW_LOSS_PLOT, learning_rate=0.5, convergence_threshold=1e-3):
     """
@@ -197,6 +203,7 @@ def optimize_theta(y, c, show_loss_plot=SHOW_LOSS_PLOT, learning_rate=0.5, conve
 
     prev_loss = float('inf')
     loss = -logistic_eval(y, c, theta)
+    print('Initial loss:', loss)
     losses = [loss]
     while loss < prev_loss - convergence_threshold * num_examples: # scale by num_examples as a normalization
         gradient = logistic_derivative(y, c, theta) / num_examples # scale by num_examples as a normalization
