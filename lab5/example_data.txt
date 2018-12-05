@@ -1,0 +1,36 @@
+Alyssa P. Hacker
+        6.001
+Louis Reasoner
+        6.001
+        6.002
+        6.003
+        6.01
+        6.008
+Joe Bloggs
+        6.01
+        6.008
+Alice
+        6.01
+        6.008
+        6.046
+Bob
+        6.01
+        6.046
+Carol
+        6.003
+David
+        6.004
+Edwina
+        6.000999
+Fred
+        6.002
+Ben Bitdiddle
+        6.001
+        6.002
+        6.003
+        6.004
+        6.01
+        6.000999
+        6.008
+Tim the Beaver
+        6.008
