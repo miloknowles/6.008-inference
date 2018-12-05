@@ -2,6 +2,7 @@ from __future__ import division
 import sys
 import random
 import numpy as np
+from matplotlib import pyplot as plt
 
 import util
 
@@ -38,7 +39,7 @@ def approx_markov_chain_steady_state(conditional_distribution, N_samples, iterat
 
     for si in range(N_samples):
         if si % 100 == 0:
-            print('Generated samples %d/%d' % (si, N_samples))
+            print('[INFO] Generated samples %d/%d' % (si, N_samples))
 
         for i in range(iterations_between_samples):
             # With p=0.1, transition to a random state.
@@ -55,6 +56,42 @@ def approx_markov_chain_steady_state(conditional_distribution, N_samples, iterat
     empirical_distribution.renormalize()
 
     return empirical_distribution
+
+def compute_kl_divergence(d1, d2):
+    """
+    Computes the KL divergence formula.
+    """
+    # Must have the same alphabet to compute divergence.
+    assert(d1.keys() == d2.keys())
+
+    kld = 0
+    for s in d1.keys():
+        kld += d1[s] * np.log(d1[s] / d2[s])
+
+    return kld
+
+def plot_kl_divergence(conditional_distribution):
+    """
+    Compare the KL divergence between two empirical distributions generated
+    using approx_markov_chain_steady_state above.
+
+    Plot the results when using 128, 256, 512, 1024, 2048, 4096, and 8192 samples.
+    """
+    samples_sizes = [128, 256, 512] #, 1024, 2048, 4096, 8192]
+    kld_values = []
+
+    for N_samples in samples_sizes:
+        dist1 = approx_markov_chain_steady_state(conditional_distribution, N_samples, 1000)
+        dist2 = approx_markov_chain_steady_state(conditional_distribution, N_samples, 1000)
+        kld = compute_kl_divergence(dist1, dist2)
+        kld_values.append(kld)
+        print('[INFO] N_samples=%d divergence=%f' % (N_samples, kld))
+
+    plt.plot(samples_sizes, kld_values)
+    plt.title('KL Divergence vs. # Samples')
+    plt.ylabel('divergence')
+    plt.xlabel('# samples')
+    plt.show()
 
 def compute_distributions(actor_to_movies, movie_to_actors):
     """
@@ -153,13 +190,9 @@ def run_pagerank(data_filename, N_samples, iterations_between_samples):
     for i in range(0, values_to_show):
         print("%0.6f: %s" %top[i])
 
-    # -------------------------------------------------------------------------
-    # YOUR CODE GOES HERE FOR PART (b)
-    # Do not modify steady_state
-
-
-    # END OF YOUR CODE FOR PART (b)
-    # -------------------------------------------------------------------------
+    # Compute and plot the KL divergence for varying # samples.
+    print('[INFO] Plotting KL divergence.')
+    plot_kl_divergence(conditional_distribution)
 
     return steady_state
 
