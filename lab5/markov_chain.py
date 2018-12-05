@@ -83,7 +83,8 @@ def compute_kl_divergence(d1, d2):
 
     kld = 0
     for s in d1.keys():
-        kld += d1[s] * np.log(d1[s] / d2[s])
+        if s in d2:
+            kld += d1[s] * np.log(d1[s] / d2[s])
 
     return kld
 
@@ -103,7 +104,7 @@ def kl_divergence_mc(conditional_distribution, n_samples, output=None, pid=None)
 
     return kld
 
-def plot_kl_divergence(conditional_distribution, multithreaded=False):
+def plot_kl_divergence(conditional_distribution):
     """
     Compare the KL divergence between two empirical distributions generated
     using approx_markov_chain_steady_state above.
@@ -114,22 +115,9 @@ def plot_kl_divergence(conditional_distribution, multithreaded=False):
     threads = [None] * len(samples_sizes)
     results = Array('f', len(samples_sizes))
 
-    if multithreaded:
-        # Do each job on a separate thread.
-        # This will roughly cut the computation time in half.
-        for pid, N_samples in enumerate(samples_sizes):
-            print('Spawning process with pid=%d' % pid)
-            threads[pid] = Process(target=kl_divergence_mc,
-                                  args=(conditional_distribution, N_samples, results, pid))
-            threads[pid].start()
-
-        for pid in range(len(threads)):
-            threads[pid].join()
-
-    else:
-        for i, N_samples in enumerate(samples_sizes):
-            print('Computing for N_samples=%d' % N_samples)
-            results[i] = kl_divergence_mc(conditional_distribution, N_samples)
+    for i, N_samples in enumerate(samples_sizes):
+        print('Computing for N_samples=%d' % N_samples)
+        results[i] = kl_divergence_mc(conditional_distribution, N_samples)
 
     plt.plot(samples_sizes, np.array(results))
     plt.title('KL Divergence vs. # Samples')
