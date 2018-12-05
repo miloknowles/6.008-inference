@@ -1,12 +1,34 @@
 from __future__ import division
 import sys
 import random
+import time
 import numpy as np
 from matplotlib import pyplot as plt
+from multiprocessing import Process, Array, Lock, Pool, cpu_count
 
 import util
 
-def approx_markov_chain_steady_state(conditional_distribution, N_samples, iterations_between_samples):
+def generate_sample(states, conditional_distribution,
+                    iterations_between_samples, pid):
+    """
+    Generates a single sample for approx_markov_chain_steady_state.
+    """
+    # Choose a random initial state.
+    s = np.random.choice(states, p=None) # Uniform prior on states.
+
+    for i in range(iterations_between_samples):
+        # With p=0.1, transition to a random state.
+        if (random.random() <= 0.1):
+            s = np.random.choice(states, p=None) # Choose uniformly.
+        # With p=0.9, take a transition based on conditionals.
+        else:
+            s = conditional_distribution[s].sample()
+
+    # Return the sample.
+    return s
+
+def approx_markov_chain_steady_state(conditional_distribution, N_samples,
+                                    iterations_between_samples, debug=True):
     """
     Computes the steady-state distribution by simulating running the Markov
     chain. Collects samples at regular intervals and returns the empirical
@@ -29,32 +51,27 @@ def approx_markov_chain_steady_state(conditional_distribution, N_samples, iterat
     An empirical Distribution over the states that should approximate the
     steady-state distribution.
     """
+    t0 = time.time()
+
     empirical_distribution = util.Distribution()
 
     # Collect all valid states.
     states = list(conditional_distribution.keys())
 
-    # Choose a random initial state.
-    s = np.random.choice(states, p=None) # Uniform prior on states.
+    # Parallelize sampling. Here I make the assumption that each sample can be
+    # generated independently from a uniformly sampled initial state.
+    with Pool(processes=3*cpu_count()) as pool:
+        results = [pool.apply_async(generate_sample, (states, conditional_distribution,
+                  iterations_between_samples, i)) for i in range(N_samples)]
+        samples = [r.get(timeout=0.5) for r in results]
 
-    for si in range(N_samples):
-        if si % 100 == 0:
-            print('[INFO] Generated samples %d/%d' % (si, N_samples))
-
-        for i in range(iterations_between_samples):
-            # With p=0.1, transition to a random state.
-            if (random.random() <= 0.1):
-                s = np.random.choice(states, p=None) # Choose uniformly.
-            # With p=0.9, take a transition based on conditionals.
-            else:
-                s = conditional_distribution[s].sample()
-
-        # Sample the current state.
+    for s in samples:
         empirical_distribution[s] += 1.0
 
     # Normalize before returning.
     empirical_distribution.renormalize()
 
+    if debug: print('Finished simulation in %f sec.' % (time.time()-t0))
     return empirical_distribution
 
 def compute_kl_divergence(d1, d2):
@@ -70,24 +87,51 @@ def compute_kl_divergence(d1, d2):
 
     return kld
 
-def plot_kl_divergence(conditional_distribution):
+def kl_divergence_mc(conditional_distribution, n_samples, output=None, pid=None):
+    """
+    Compare the KL divergence between two empirical distributions generated
+    using approx_markov_chain_steady_state above.
+    """
+    dist1 = approx_markov_chain_steady_state(conditional_distribution, n_samples, 1000)
+    dist2 = approx_markov_chain_steady_state(conditional_distribution, n_samples, 1000)
+    kld = compute_kl_divergence(dist1, dist2)
+
+    # If this is run in a thread, store the result in a pre-allocated slot.
+    if output is not None:
+        print('Result pid=%d divergence=%f' % (pid, kld))
+        output[pid] = kld
+
+    return kld
+
+def plot_kl_divergence(conditional_distribution, multithreaded=False):
     """
     Compare the KL divergence between two empirical distributions generated
     using approx_markov_chain_steady_state above.
 
     Plot the results when using 128, 256, 512, 1024, 2048, 4096, and 8192 samples.
     """
-    samples_sizes = [128, 256, 512] #, 1024, 2048, 4096, 8192]
-    kld_values = []
+    samples_sizes = [128, 256, 512, 1024, 2048, 4096, 8192]
+    threads = [None] * len(samples_sizes)
+    results = Array('f', len(samples_sizes))
 
-    for N_samples in samples_sizes:
-        dist1 = approx_markov_chain_steady_state(conditional_distribution, N_samples, 1000)
-        dist2 = approx_markov_chain_steady_state(conditional_distribution, N_samples, 1000)
-        kld = compute_kl_divergence(dist1, dist2)
-        kld_values.append(kld)
-        print('[INFO] N_samples=%d divergence=%f' % (N_samples, kld))
+    if multithreaded:
+        # Do each job on a separate thread.
+        # This will roughly cut the computation time in half.
+        for pid, N_samples in enumerate(samples_sizes):
+            print('Spawning process with pid=%d' % pid)
+            threads[pid] = Process(target=kl_divergence_mc,
+                                  args=(conditional_distribution, N_samples, results, pid))
+            threads[pid].start()
 
-    plt.plot(samples_sizes, kld_values)
+        for pid in range(len(threads)):
+            threads[pid].join()
+
+    else:
+        for i, N_samples in enumerate(samples_sizes):
+            print('Computing for N_samples=%d' % N_samples)
+            results[i] = kl_divergence_mc(conditional_distribution, N_samples)
+
+    plt.plot(samples_sizes, np.array(results))
     plt.title('KL Divergence vs. # Samples')
     plt.ylabel('divergence')
     plt.xlabel('# samples')
@@ -200,10 +244,10 @@ if __name__ == '__main__':
     if len(sys.argv) != 4:
         print("Usage: python markovChain.py <data file> <samples> <iterations between samples>")
         sys.exit(1)
-    data_filename = sys.argv[1]
-    N_samples = int(sys.argv[2])
-    iterations_between_samples = int(sys.argv[3])
+    data_filename_cli = sys.argv[1]
+    N_samples_cli = int(sys.argv[2])
+    iterations_between_samples_cli = int(sys.argv[3])
 
-    run_pagerank(data_filename, N_samples, iterations_between_samples)
+    run_pagerank(data_filename_cli, N_samples_cli, iterations_between_samples_cli)
 
     
