@@ -1,6 +1,7 @@
 from __future__ import division
 import sys
 import random
+import numpy as np
 
 import util
 
@@ -29,12 +30,29 @@ def approx_markov_chain_steady_state(conditional_distribution, N_samples, iterat
     """
     empirical_distribution = util.Distribution()
 
-    # -------------------------------------------------------------------------
-    # YOUR CODE GOES HERE FOR PART (a)
+    # Collect all valid states.
+    states = list(conditional_distribution.keys())
 
+    # Choose a random initial state.
+    s = np.random.choice(states, p=None) # Uniform prior on states.
 
-    # END OF YOUR CODE FOR PART (a)
-    # -------------------------------------------------------------------------
+    for si in range(N_samples):
+        if si % 100 == 0:
+            print('Generated samples %d/%d' % (si, N_samples))
+
+        for i in range(iterations_between_samples):
+            # With p=0.1, transition to a random state.
+            if (random.random() <= 0.1):
+                s = np.random.choice(states, p=None) # Choose uniformly.
+            # With p=0.9, take a transition based on conditionals.
+            else:
+                s = conditional_distribution[s].sample()
+
+        # Sample the current state.
+        empirical_distribution[s] += 1.0
+
+    # Normalize before returning.
+    empirical_distribution.renormalize()
 
     return empirical_distribution
 
