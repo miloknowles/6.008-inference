@@ -60,7 +60,7 @@ def approx_markov_chain_steady_state(conditional_distribution, N_samples,
 
     # Parallelize sampling. Here I make the assumption that each sample can be
     # generated independently from a uniformly sampled initial state.
-    with Pool(processes=3*cpu_count()) as pool:
+    with Pool(processes=2*cpu_count()) as pool:
         results = [pool.apply_async(generate_sample, (states, conditional_distribution,
                   iterations_between_samples, i)) for i in range(N_samples)]
         samples = [r.get(timeout=0.5) for r in results]
@@ -222,11 +222,23 @@ def run_pagerank(data_filename, N_samples, iterations_between_samples):
     for i in range(0, values_to_show):
         print("%0.6f: %s" %top[i])
 
+    ### PART A: Uncomment this to see the KL divergence plot. ###
     # Compute and plot the KL divergence for varying # samples.
-    print('[INFO] Plotting KL divergence.')
-    plot_kl_divergence(conditional_distribution)
+    # print('[INFO] Plotting KL divergence.')
+    # plot_kl_divergence(conditional_distribution)
 
     return steady_state
+
+def get_actors_most_movies(data_filename, k=20):
+    (actor_to_movies, movie_to_actors) = read_file(data_filename)
+
+    actor_num_movies = []
+
+    for actor in actor_to_movies:
+        actor_num_movies.append((actor, len(actor_to_movies[actor])))
+
+    ranked = sorted(actor_num_movies, key=lambda x: x[1], reverse=True)
+    return ranked[:k]
 
 if __name__ == '__main__':
     if len(sys.argv) != 4:
@@ -237,5 +249,7 @@ if __name__ == '__main__':
     iterations_between_samples_cli = int(sys.argv[3])
 
     run_pagerank(data_filename_cli, N_samples_cli, iterations_between_samples_cli)
-
     
+    # PART B: Uncomment this to get the top 20 actors by # of movies.
+    # top20_most_movies = get_actors_most_movies(data_filename_cli)
+    # print(top20_most_movies)
